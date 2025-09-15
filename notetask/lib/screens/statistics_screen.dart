@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../models/note.dart';
+import '../models/category.dart';
 import '../services/local_storage_service.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -11,89 +13,362 @@ class StatisticsScreen extends StatefulWidget {
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
   final LocalStorageService _localStorageService = LocalStorageService();
-  List<Note> _notes = [];
   bool _isLoading = true;
+  List<Note> _allNotes = [];
+  List<Category> _categories = [];
+  Map<String, int> _notesByCategory = {};
+
+  int _totalTasks = 0;
+  int _completedTasks = 0;
+  int _openTasks = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadNotesAndCalculateStats();
+    _loadData();
   }
 
-  Future<void> _loadNotesAndCalculateStats() async {
+  Future<void> _loadData() async {
     final notes = await _localStorageService.getNotes();
+    final categories = await _localStorageService.getCategories();
+
+    final Map<String, int> notesByCategoryCount = {};
+    for (var category in categories) {
+      notesByCategoryCount[category.id] = 0;
+    }
+    for (var note in notes) {
+      final categoryId = note.categoryId;
+      if (categoryId != null && notesByCategoryCount.containsKey(categoryId)) {
+        notesByCategoryCount[categoryId] =
+            notesByCategoryCount[categoryId]! + 1;
+      }
+    }
+
+    final tasks = notes.where((note) => note.isTask).toList();
+    final completed = tasks.where((task) => task.isCompleted).length;
+    final open = tasks.where((task) => !task.isCompleted).length;
+
     setState(() {
-      _notes = notes;
+      _allNotes = notes;
+      _categories = categories;
+      _notesByCategory = notesByCategoryCount;
+      _totalTasks = tasks.length;
+      _completedTasks = completed;
+      _openTasks = open;
       _isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Definindo as cores com base no tema atual
-    final isLightMode = Theme.of(context).brightness == Brightness.light;
-    final textColor = isLightMode ? Colors.black : Colors.white;
-
-    // Calcular estatísticas
-    final totalItems = _notes.length;
-    final totalTasks = _notes.where((n) => n.isTask).length;
-    final completedTasks = _notes.where((n) => n.isTask && n.isCompleted).length;
-    final pendingTasks = totalTasks - completedTasks;
-    final completionPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0.0;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Estatísticas'),
-        backgroundColor: isLightMode ? Colors.white : Colors.black,
-        foregroundColor: textColor,
-        elevation: 1,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildStatItem('Total de Itens:', '$totalItems'),
-                  _buildStatItem('Total de Tarefas:', '$totalTasks'),
-                  _buildStatItem('Tarefas Concluídas:', '$completedTasks'),
-                  _buildStatItem('Tarefas Pendentes:', '$pendingTasks'),
-                  const Divider(height: 30),
-                  _buildStatItem(
-                    'Taxa de Conclusão:',
-                    '${completionPercentage.toStringAsFixed(1)}%',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  Text(
+                    'Visão Geral',
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
+                  const SizedBox(height: 16),
+
+                  // AQUI ESTÁ A CORREÇÃO: Usando Wrap em vez de Row
+                  _buildSummaryCards(colorScheme),
+
+                  const SizedBox(height: 32),
+
+                  Text(
+                    'Distribuição por Categoria',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 200,
+                    child: PieChart(
+                      PieChartData(
+                        sections: _buildCategoryPieChartSections(colorScheme),
+                        borderData: FlBorderData(show: false),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCategoryLegend(colorScheme),
+
+                  const SizedBox(height: 32),
+
+                  Text(
+                    'Conclusão de Tarefas',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 24),
+                  if (_totalTasks > 0)
+                    SizedBox(
+                      height: 200,
+                      child: PieChart(
+                        PieChartData(
+                          sections: _buildTaskCompletionSections(colorScheme),
+                          borderData: FlBorderData(show: false),
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 40,
+                        ),
+                      ),
+                    )
+                  else
+                    const Text('Nenhuma tarefa cadastrada para análise.'),
+
+                  const SizedBox(height: 16),
+                  _buildTaskCompletionLegend(colorScheme),
+
+                  const SizedBox(height: 32),
+
+                  Text(
+                    'Tarefas Recentes',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  ..._allNotes
+                      .where((note) => note.isTask && note.isCompleted)
+                      .take(5)
+                      .map(
+                        (note) => ListTile(
+                          leading: Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          ),
+                          title: Text(
+                            note.content,
+                            style: TextStyle(
+                              color: colorScheme.onSurface,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildStatItem(String label, String value, {TextStyle? style}) {
-    final isLightMode = Theme.of(context).brightness == Brightness.light;
-    final textColor = isLightMode ? Colors.black : Colors.white;
+  Widget _buildSummaryCards(ColorScheme colorScheme) {
+    // CORREÇÃO: Usando Wrap para quebrar a linha se a tela for pequena
+    return Wrap(
+      spacing: 8.0, // Espaço horizontal entre os cards
+      runSpacing: 8.0, // Espaço vertical entre as linhas de cards
+      alignment: WrapAlignment.spaceAround,
+      children: [
+        _buildSummaryCard(
+          title: 'Notas Totais',
+          value: _allNotes.length.toString(),
+          icon: Icons.notes,
+          color: colorScheme.primary,
+        ),
+        _buildSummaryCard(
+          title: 'Tarefas Abertas',
+          value: _openTasks.toString(),
+          icon: Icons.task_alt,
+          color: Colors.orange,
+        ),
+        _buildSummaryCard(
+          title: 'Tarefas Concluídas',
+          value: _completedTasks.toString(),
+          icon: Icons.check_circle_outline,
+          color: Colors.green,
+        ),
+      ],
+    );
+  }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 18, color: textColor),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ).merge(style),
-          ),
-        ],
+  Widget _buildSummaryCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(height: 8),
+            Text(value, style: Theme.of(context).textTheme.headlineSmall),
+            Text(title, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
       ),
+    );
+  }
+
+  List<PieChartSectionData> _buildCategoryPieChartSections(
+    ColorScheme colorScheme,
+  ) {
+    final List<Color> colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.red,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+    ];
+    int colorIndex = 0;
+
+    return _categories.map((category) {
+      final count = _notesByCategory[category.id] ?? 0;
+      if (count == 0) return PieChartSectionData(showTitle: false, value: 0);
+
+      final color = colors[colorIndex % colors.length];
+      colorIndex++;
+
+      return PieChartSectionData(
+        color: color,
+        value: count.toDouble(),
+        title: count.toString(),
+        radius: 60,
+        titleStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: colorScheme.onPrimary,
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildCategoryLegend(ColorScheme colorScheme) {
+    final List<Color> colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.red,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+    ];
+    int colorIndex = 0;
+
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 4.0,
+      children: _categories
+          .where((cat) => (_notesByCategory[cat.id] ?? 0) > 0)
+          .map((category) {
+            final count = _notesByCategory[category.id] ?? 0;
+            final percentage = _allNotes.isEmpty
+                ? 0
+                : (count / _allNotes.length) * 100;
+            final color = colors[colorIndex % colors.length];
+            colorIndex++;
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${category.name} ($count - ${percentage.toStringAsFixed(1)}%)',
+                  style: TextStyle(color: colorScheme.onSurface),
+                ),
+              ],
+            );
+          })
+          .toList(),
+    );
+  }
+
+  List<PieChartSectionData> _buildTaskCompletionSections(
+    ColorScheme colorScheme,
+  ) {
+    final openPercentage = _totalTasks > 0
+        ? (_openTasks / _totalTasks) * 100
+        : 0.0;
+    final completedPercentage = _totalTasks > 0
+        ? (_completedTasks / _totalTasks) * 100
+        : 0.0;
+
+    return [
+      PieChartSectionData(
+        color: Colors.green,
+        value: completedPercentage,
+        title: '${completedPercentage.toStringAsFixed(1)}%',
+        radius: 60,
+        titleStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: colorScheme.onPrimary,
+        ),
+      ),
+      PieChartSectionData(
+        color: Colors.orange,
+        value: openPercentage,
+        title: '${openPercentage.toStringAsFixed(1)}%',
+        radius: 60,
+        titleStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: colorScheme.onPrimary,
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildTaskCompletionLegend(ColorScheme colorScheme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildLegendItem(
+          label: 'Concluídas',
+          color: Colors.green,
+          value: '$_completedTasks',
+        ),
+        _buildLegendItem(
+          label: 'Em Aberto',
+          color: Colors.orange,
+          value: '$_openTasks',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem({
+    required String label,
+    required Color color,
+    required String value,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+        const SizedBox(width: 8),
+        Text('$label ($value)', style: TextStyle(color: colorScheme.onSurface)),
+      ],
     );
   }
 }
