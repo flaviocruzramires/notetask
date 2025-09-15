@@ -27,7 +27,7 @@ class LocalStorageService {
 
     return openDatabase(
       dbPath,
-      version: 2,
+      version: 3, // VERSÃO ATUALIZADA PARA 3
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE notes(
@@ -35,7 +35,9 @@ class LocalStorageService {
             content TEXT,
             isTask INTEGER,
             isCompleted INTEGER,
-            categoryId TEXT
+            categoryId TEXT,
+            scheduledDate TEXT,   -- NOVO CAMPO
+            addToCalendar INTEGER -- NOVO CAMPO
           )
         ''');
         await db.execute('''
@@ -46,8 +48,15 @@ class LocalStorageService {
         ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
+        // Lógica de migração para cada versão
         if (oldVersion < 2) {
           await db.execute('ALTER TABLE notes ADD COLUMN categoryId TEXT');
+        }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE notes ADD COLUMN scheduledDate TEXT');
+          await db.execute(
+            'ALTER TABLE notes ADD COLUMN addToCalendar INTEGER',
+          );
         }
       },
     );

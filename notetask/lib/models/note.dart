@@ -4,13 +4,16 @@ class Note {
   bool isTask;
   bool isCompleted;
   String? categoryId;
-
+  final DateTime? scheduledDate;
+  final bool addToCalendar;
   Note({
     required this.id,
     required this.content,
     this.isTask = false,
     this.isCompleted = false,
     this.categoryId,
+    this.scheduledDate,
+    this.addToCalendar = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -20,6 +23,8 @@ class Note {
       'isTask': isTask ? 1 : 0,
       'isCompleted': isCompleted ? 1 : 0,
       'categoryId': categoryId,
+      'scheduledDate': scheduledDate?.toIso8601String(),
+      'addToCalendar': addToCalendar ? 1 : 0,
     };
   }
 
@@ -30,6 +35,10 @@ class Note {
       isTask: json['isTask'] == 1,
       isCompleted: json['isCompleted'] == 1,
       categoryId: json['categoryId'] as String?,
+      scheduledDate: json['scheduledDate'] != null
+          ? DateTime.parse(json['scheduledDate'])
+          : null,
+      addToCalendar: json['addToCalendar'] == 1,
     );
   }
 }
