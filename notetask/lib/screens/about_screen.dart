@@ -34,23 +34,17 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               'Versão 1.0.0',
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor.withOpacity(0.7),
-              ),
+              style: TextStyle(fontSize: 16, color: textColor.withOpacity(0.7)),
             ),
             const SizedBox(height: 30),
             Text(
               'O NoteTask é um aplicativo simples e intuitivo para organizar suas anotações e gerenciar tarefas. Mantenha-se produtivo e focado no que realmente importa.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-              ),
+              style: TextStyle(fontSize: 16, color: textColor),
             ),
             const SizedBox(height: 40),
             Text(
-              'Desenvolvido por [Seu Nome]',
+              'Desenvolvido por Flavio C. Ramires',
               style: TextStyle(
                 fontSize: 14,
                 fontStyle: FontStyle.italic,

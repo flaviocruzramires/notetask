@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import '../models/note.dart';
-import '../models/category.dart';
-import '../services/local_storage_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:http/http.dart' as http;
 import 'dart:io';
 
+import '../models/note.dart';
+import '../models/category.dart';
+import '../services/local_storage_service.dart';
+import '../widgets/task_scheduler_fields.dart';
+
+/// Classe para gerenciar a autenticação e o uso da API
 class GoogleAuthClient extends http.BaseClient {
   final Map<String, String> _headers;
   final http.Client _client = http.Client();
@@ -36,9 +39,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   bool _isCompleted = false;
   String? _selectedCategoryId;
   List<Category> _categories = [];
+
+  // Variáveis para agendamento
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _addToCalendar = false;
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: <String>[calendar.CalendarApi.calendarScope],
   );
@@ -92,14 +98,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       addToCalendar: _addToCalendar,
     );
 
-    // Lógica para enviar o evento para o Google Calendar
     if (newNote.isTask &&
         newNote.addToCalendar &&
         newNote.scheduledDate != null) {
       await _addEventToCalendar(newNote.content, newNote.scheduledDate!);
     }
 
-    // Devolve a nota para a tela anterior
     Navigator.of(context).pop(newNote);
   }
 
@@ -130,189 +134,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
   void _deleteNote() {
     Navigator.of(context).pop('delete');
-  }
-
-  @override
-  @override
-  Widget build(BuildContext context) {
-    final isLightMode = Theme.of(context).brightness == Brightness.light;
-    final iconColor = isLightMode ? Colors.black : Colors.white;
-    final textColor = iconColor;
-    final bgColor = isLightMode ? Colors.white : Colors.black;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.note == null ? 'Nova Nota/Tarefa' : 'Editar'),
-        backgroundColor: bgColor,
-        foregroundColor: iconColor,
-        elevation: 1,
-        actions: [
-          if (widget.note != null)
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: _confirmDeletion,
-            ),
-          IconButton(icon: const Icon(Icons.check), onPressed: _saveNote),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _isTask,
-                      onChanged: (value) {
-                        setState(() {
-                          _isTask = value ?? false;
-                          if (!_isTask) {
-                            _isCompleted = false;
-                          }
-                        });
-                      },
-                      activeColor: iconColor,
-                      checkColor: Theme.of(context).scaffoldBackgroundColor,
-                    ),
-                    Text('É uma tarefa', style: TextStyle(color: textColor)),
-                  ],
-                ),
-                if (_isTask)
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _isCompleted,
-                        onChanged: (value) {
-                          setState(() {
-                            _isCompleted = value ?? false;
-                          });
-                        },
-                        activeColor: iconColor,
-                        checkColor: Theme.of(context).scaffoldBackgroundColor,
-                      ),
-                      Text('Concluída', style: TextStyle(color: textColor)),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-          // AQUI ESTÁ A CORREÇÃO: O bloco de agendamento foi movido
-          // para fora do Row e inserido diretamente no Column principal.
-          if (_isTask)
-            Column(
-              children: [
-                const SizedBox(height: 16),
-                // Seletor de Data
-                ListTile(
-                  title: Text(
-                    _selectedDate == null
-                        ? 'Selecione a Data'
-                        : 'Data: ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                  ),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate ?? DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null) {
-                      setState(() => _selectedDate = date);
-                    }
-                  },
-                ),
-                // Seletor de Hora
-                ListTile(
-                  title: Text(
-                    _selectedTime == null
-                        ? 'Selecione a Hora'
-                        : 'Hora: ${_selectedTime!.format(context)}',
-                  ),
-                  trailing: const Icon(Icons.access_time),
-                  onTap: () async {
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: _selectedTime ?? TimeOfDay.now(),
-                    );
-                    if (time != null) {
-                      setState(() => _selectedTime = time);
-                    }
-                  },
-                ),
-                // Checkbox para Calendar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      Checkbox(
-                        value: _addToCalendar,
-                        onChanged: (value) {
-                          setState(() {
-                            _addToCalendar = value ?? false;
-                          });
-                        },
-                      ),
-                      const Text('Adicionar ao Google Calendar'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Categoria',
-                labelStyle: TextStyle(color: textColor),
-                border: const OutlineInputBorder(),
-              ),
-              dropdownColor: bgColor,
-              style: TextStyle(color: textColor),
-              value: _selectedCategoryId,
-              items: _categories.map((category) {
-                return obterDropdownMenuItem(category);
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategoryId = value;
-                });
-              },
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                controller: _contentController,
-                style: TextStyle(color: textColor),
-                decoration: const InputDecoration(
-                  hintText: 'Digite aqui sua nota ou tarefa...',
-                  border: InputBorder.none,
-                ),
-                keyboardType: TextInputType.multiline,
-                maxLines: null,
-                expands: true,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  DropdownMenuItem<String> obterDropdownMenuItem(Category category) {
-    return DropdownMenuItem<String>(
-      value: category!.id,
-      child: Text(category.name),
-    );
   }
 
   Future<void> _addEventToCalendar(String title, DateTime scheduledDate) async {
@@ -352,5 +173,154 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         ),
       );
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.note == null ? 'Nova Nota/Tarefa' : 'Editar'),
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        elevation: 1,
+        actions: [
+          if (widget.note != null)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _confirmDeletion,
+            ),
+          IconButton(icon: const Icon(Icons.check), onPressed: _saveNote),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _isTask,
+                      onChanged: (value) {
+                        setState(() {
+                          _isTask = value ?? false;
+                          if (!_isTask) {
+                            _isCompleted = false;
+                            // Resetar os campos de agendamento ao desmarcar 'É uma tarefa'
+                            _selectedDate = null;
+                            _selectedTime = null;
+                            _addToCalendar = false;
+                          }
+                        });
+                      },
+                      activeColor: colorScheme.onSurface,
+                      checkColor: Theme.of(context).scaffoldBackgroundColor,
+                    ),
+                    Text(
+                      'É uma tarefa',
+                      style: TextStyle(color: colorScheme.onSurface),
+                    ),
+                  ],
+                ),
+                if (_isTask)
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _isCompleted,
+                        onChanged: (value) {
+                          setState(() {
+                            _isCompleted = value ?? false;
+                          });
+                        },
+                        activeColor: colorScheme.onSurface,
+                        checkColor: Theme.of(context).scaffoldBackgroundColor,
+                      ),
+                      Text(
+                        'Concluída',
+                        style: TextStyle(color: colorScheme.onSurface),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          // O novo widget TaskSchedulerFields é inserido aqui
+          if (_isTask)
+            TaskSchedulerFields(
+              initialDate: _selectedDate,
+              initialTime: _selectedTime,
+              initialAddToCalendar: _addToCalendar,
+              onDateSelected: (date) {
+                setState(() => _selectedDate = date);
+              },
+              onTimeSelected: (time) {
+                setState(() => _selectedTime = time);
+              },
+              onAddToCalendarChanged: (value) {
+                setState(() => _addToCalendar = value);
+              },
+            ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
+            child: DropdownButtonFormField<String>(
+              decoration: InputDecoration(
+                labelText: 'Categoria',
+                labelStyle: TextStyle(color: colorScheme.onSurface),
+                border: const OutlineInputBorder(),
+              ),
+              dropdownColor: colorScheme.surface,
+              style: TextStyle(color: colorScheme.onSurface),
+              value: _selectedCategoryId,
+              items: _categories.map((category) {
+                return obterDropdownMenuItem(category);
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategoryId = value;
+                });
+              },
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _contentController,
+                style: TextStyle(color: colorScheme.onSurface),
+                decoration: InputDecoration(
+                  hintText: 'Digite aqui sua nota ou tarefa...',
+                  hintStyle: TextStyle(
+                    color: colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                  border: InputBorder.none,
+                ),
+                keyboardType: TextInputType.multiline,
+                maxLines: null,
+                expands: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DropdownMenuItem<String> obterDropdownMenuItem(Category category) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return DropdownMenuItem<String>(
+      value: category.id,
+      child: Text(
+        category.name,
+        style: TextStyle(color: colorScheme.onSurface),
+      ),
+    );
   }
 }

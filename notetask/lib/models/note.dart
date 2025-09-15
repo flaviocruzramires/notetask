@@ -41,4 +41,6 @@ class Note {
       addToCalendar: json['addToCalendar'] == 1,
     );
   }
+
+  copyWith({bool? isCompleted}) {}
 }
