@@ -38,6 +38,7 @@ class NoteListItem extends StatelessWidget {
             ? isCompletedStyle
             : TextStyle(color: textColor),
       ),
+      // leading: Icon(categoryIcon, size: 20, color: textColor.withOpacity(0.6)),
       subtitle: categoryName != null
           ? Row(
               children: [

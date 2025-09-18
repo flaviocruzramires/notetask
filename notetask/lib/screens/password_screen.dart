@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:notetask/services/local_storage_service.dart';
+import 'package:notetask/services/settings_service.dart';
 
 class PasswordScreen extends StatefulWidget {
   final VoidCallback onPasswordSuccess;
@@ -11,7 +11,7 @@ class PasswordScreen extends StatefulWidget {
 }
 
 class _PasswordScreenState extends State<PasswordScreen> {
-  final LocalStorageService _localStorageService = LocalStorageService();
+  final SettingsService _localStorageService = SettingsService();
   final TextEditingController _passwordController = TextEditingController();
 
   String? _storedPassword;
@@ -47,8 +47,8 @@ class _PasswordScreenState extends State<PasswordScreen> {
   @override
   Widget build(BuildContext context) {
     // Definindo as cores com base no tema (o app ainda não abriu, então o tema padrão é claro)
-    const textColor = Colors.black;
-    const backgroundColor = Colors.white;
+    final textColor = Colors.black;
+    final backgroundColor = Colors.white;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -58,7 +58,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.lock_outline, size: 80, color: textColor),
+              Icon(Icons.lock_outline, size: 80, color: textColor),
               const SizedBox(height: 20),
               Text(
                 'Digite sua senha',
@@ -72,7 +72,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                style: const TextStyle(color: textColor),
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   labelText: 'Senha',
                   labelStyle: TextStyle(color: textColor.withOpacity(0.6)),
@@ -80,7 +80,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
                   enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: textColor.withOpacity(0.4)),
                   ),
-                  focusedBorder: const OutlineInputBorder(
+                  focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: textColor),
                   ),
                 ),

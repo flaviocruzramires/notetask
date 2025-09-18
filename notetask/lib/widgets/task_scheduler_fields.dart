@@ -4,18 +4,22 @@ class TaskSchedulerFields extends StatefulWidget {
   final DateTime? initialDate;
   final TimeOfDay? initialTime;
   final bool initialAddToCalendar;
+  final bool initialSetAlarm;
   final ValueChanged<DateTime?> onDateSelected;
   final ValueChanged<TimeOfDay?> onTimeSelected;
   final ValueChanged<bool> onAddToCalendarChanged;
+  final ValueChanged<bool> onSetAlarmChanged;
 
   const TaskSchedulerFields({
     super.key,
     this.initialDate,
     this.initialTime,
     this.initialAddToCalendar = false,
+    this.initialSetAlarm = false,
     required this.onDateSelected,
     required this.onTimeSelected,
     required this.onAddToCalendarChanged,
+    required this.onSetAlarmChanged,
   });
 
   @override
@@ -26,6 +30,7 @@ class _TaskSchedulerFieldsState extends State<TaskSchedulerFields> {
   late DateTime? _selectedDate;
   late TimeOfDay? _selectedTime;
   late bool _addToCalendar;
+  late bool _addToAlarm;
 
   @override
   void initState() {
@@ -33,6 +38,7 @@ class _TaskSchedulerFieldsState extends State<TaskSchedulerFields> {
     _selectedDate = widget.initialDate;
     _selectedTime = widget.initialTime;
     _addToCalendar = widget.initialAddToCalendar;
+    _addToAlarm = widget.initialSetAlarm;
   }
 
   @override

@@ -1,5 +1,7 @@
+// lib/screens/settings_screen.dart
+
 import 'package:flutter/material.dart';
-import 'package:notetask/services/local_storage_service.dart';
+import 'package:notetask/services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final Function(bool) onThemeChanged;
@@ -11,7 +13,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final LocalStorageService _localStorageService = LocalStorageService();
+  // Agora usamos o SettingsService
+  final SettingsService _settingsService = SettingsService();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isPasswordProtected = false;
@@ -25,9 +28,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    _isPasswordProtected = await _localStorageService.getPasswordProtection();
-    _currentPassword = await _localStorageService.getPassword() ?? '';
-    _isLightMode = await _localStorageService.getThemeMode();
+    // Usando os métodos do novo serviço
+    _isPasswordProtected = await _settingsService.getPasswordProtection();
+    _currentPassword = await _settingsService.getPassword() ?? '';
+    _isLightMode = await _settingsService.getThemeMode();
     setState(() {
       _passwordController.text = _currentPassword;
     });
@@ -44,7 +48,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _isPasswordProtected = value;
     });
-    await _localStorageService.setPasswordProtection(value);
+    // Usando o novo serviço
+    if (!value) {
+      await _settingsService.deletePassword();
+    }
   }
 
   Future<void> _savePassword() async {
@@ -54,45 +61,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       return;
     }
-    await _localStorageService.setPassword(_passwordController.text);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Senha salva com sucesso!')),
-    );
+    // Usando o novo serviço
+    await _settingsService.savePassword(_passwordController.text);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Senha salva com sucesso!')));
   }
 
   Future<void> _toggleThemeMode(bool value) async {
     setState(() {
       _isLightMode = value;
     });
-    await _localStorageService.setThemeMode(value);
+    // Usando o novo serviço
+    await _settingsService.saveThemeMode(value);
     widget.onThemeChanged(value);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Definindo cores para o tema
-    final isLightMode = Theme.of(context).brightness == Brightness.light;
-    final iconColor = isLightMode ? Colors.black : Colors.white;
-    final textColor = iconColor;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+    final textColor = colorScheme.onBackground;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configurações'),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
           SwitchListTile(
-            title: Text('Proteger entrada com senha', style: TextStyle(color: textColor)),
+            title: Text(
+              'Proteger entrada com senha',
+              style: TextStyle(color: textColor),
+            ),
             value: _isPasswordProtected,
             onChanged: _togglePasswordProtection,
-            activeColor: textColor,
+            activeColor: colorScheme.primary,
           ),
           if (_isPasswordProtected)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Column(
                 children: [
                   TextField(
@@ -102,14 +116,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       labelText: 'Defina uma senha',
                       labelStyle: TextStyle(color: textColor.withOpacity(0.7)),
                       border: const OutlineInputBorder(),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor.withOpacity(0.5))),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor)),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: textColor.withOpacity(0.5),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: colorScheme.primary),
+                      ),
                     ),
                     obscureText: true,
                     keyboardType: TextInputType.visiblePassword,
                   ),
                   const SizedBox(height: 10),
-                  TextButton( // Alterado de ElevatedButton para TextButton
+                  TextButton(
                     onPressed: _savePassword,
                     child: const Text('Salvar Senha'),
                   ),
@@ -118,11 +138,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           const Divider(),
           SwitchListTile(
-            title: Text('Modo Claro/Escuro', style: TextStyle(color: textColor)),
-            subtitle: Text(_isLightMode ? 'Modo Claro' : 'Modo Escuro', style: TextStyle(color: textColor.withOpacity(0.7))),
+            title: Text(
+              'Modo Claro/Escuro',
+              style: TextStyle(color: textColor),
+            ),
+            subtitle: Text(
+              _isLightMode ? 'Modo Claro' : 'Modo Escuro',
+              style: TextStyle(color: textColor.withOpacity(0.7)),
+            ),
             value: _isLightMode,
             onChanged: _toggleThemeMode,
-            activeColor: textColor,
+            activeColor: colorScheme.primary,
           ),
         ],
       ),

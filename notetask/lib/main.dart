@@ -1,12 +1,10 @@
-// Em lib/main.dart
-
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // Importe para usar kIsWeb
+import 'package:flutter/foundation.dart';
 import 'package:notetask/screens/home_screen.dart';
 import 'package:notetask/screens/password_screen.dart';
-import 'package:notetask/services/local_storage_service.dart';
+import 'package:notetask/services/settings_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'dart:io'; // Importe para usar Platform
+import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +25,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final LocalStorageService _localStorageService = LocalStorageService();
+  final SettingsService _localStorageService = SettingsService();
   bool _isLoading = true;
   bool _isPasswordProtected = false;
   bool _isLightMode = true;

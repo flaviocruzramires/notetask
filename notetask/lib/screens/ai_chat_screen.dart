@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:notetask/services/gemini_service.dart';
 
 class AiChatScreen extends StatefulWidget {
-  const AiChatScreen({super.key});
+  const AiChatScreen({super.key, this.initialQuery});
+
+  final String? initialQuery;
 
   @override
   State<AiChatScreen> createState() => _AiChatScreenState();
@@ -15,6 +17,17 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final GeminiService _geminiService = GeminiService();
   String _response = '';
   bool _isLoading = false;
+
+  String get _initialPrompt => widget.initialQuery ?? '';
+
+  @override
+  initState() {
+    super.initState();
+    if (_initialPrompt.isNotEmpty) {
+      _promptController.text = _initialPrompt;
+      _getGeminiResponse();
+    }
+  }
 
   Future<void> _getGeminiResponse() async {
     final prompt = _promptController.text;

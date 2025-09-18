@@ -1,8 +1,12 @@
+// lib/screens/home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:notetask/models/note.dart';
 import 'package:notetask/models/category.dart';
 import 'package:notetask/screens/note_edit_screen.dart';
-import 'package:notetask/services/local_storage_service.dart';
+import 'package:notetask/screens/ai_chat_screen.dart'; // Importa a tela correta de chat
+import 'package:notetask/services/note_service.dart';
+import 'package:notetask/services/category_service.dart';
 import 'package:notetask/widgets/note_list_item.dart';
 import 'package:notetask/widgets/reusable_drawer.dart';
 
@@ -16,22 +20,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final LocalStorageService _localStorageService = LocalStorageService();
+  final NoteService _noteService = NoteService();
+  final CategoryService _categoryService = CategoryService();
+
   List<Note> _notes = [];
   List<Note> _filteredNotes = [];
   List<Category> _categories = [];
   bool _isLoading = true;
   bool _isSearching = false;
-
-  // Mapeamento de categorias para ícones
-  final Map<String, IconData> _categoryIcons = {
-    'Trabalho': Icons.work,
-    'Pessoal': Icons.person,
-    'Estudo': Icons.school,
-    'Compras': Icons.shopping_cart,
-    'Saúde': Icons.local_hospital,
-    // Adicione mais mapeamentos de categorias para ícones aqui
-  };
 
   @override
   void initState() {
@@ -40,10 +36,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    final notes = await _localStorageService.getNotes();
-    final categories = await _localStorageService.getCategories();
+    final notes = await _noteService.getNotes();
+    final categories = await _categoryService.getCategories();
 
-    notes.sort((a, b) {
+    final activeNotes = notes.where((note) => !note.isArchived).toList();
+
+    activeNotes.sort((a, b) {
       if (a.isTask && !a.isCompleted && (!b.isTask || b.isCompleted)) {
         return -1;
       }
@@ -60,8 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     setState(() {
-      _notes = notes;
-      _filteredNotes = notes;
+      _notes = activeNotes;
+      _filteredNotes = activeNotes;
       _categories = categories;
       _isLoading = false;
     });
@@ -74,10 +72,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (result != null && result is Note) {
-      await _localStorageService.saveNote(result);
+      await _noteService.saveNote(result);
       _loadData();
     } else if (result == 'delete' && note != null) {
-      await _localStorageService.deleteNote(note.id);
+      await _noteService.deleteNote(note.id);
       _loadData();
     }
   }
@@ -85,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _toggleTaskCompletion(Note note, bool? isCompleted) async {
     if (note.isTask) {
       note.isCompleted = isCompleted ?? false;
-      await _localStorageService.saveNote(note);
+      await _noteService.saveNote(note);
       _loadData();
     }
   }
@@ -104,9 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLightMode = Theme.of(context).brightness == Brightness.light;
-    final appBarColor = isLightMode ? Colors.white : Colors.black;
-    final iconColor = isLightMode ? Colors.black : Colors.white;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -115,21 +111,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: InputDecoration(
                   hintText: 'Pesquisar...',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: iconColor.withOpacity(0.5)),
+                  hintStyle: TextStyle(
+                    color: colorScheme.onSurface.withOpacity(0.5),
+                  ),
                 ),
                 onChanged: _filterNotes,
                 autofocus: true,
-                style: TextStyle(color: iconColor),
+                style: TextStyle(color: colorScheme.onSurface),
               )
             : const Text('NoteTask'),
-        backgroundColor: appBarColor,
-        foregroundColor: iconColor,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 1,
         actions: [
           IconButton(
             icon: Icon(
               _isSearching ? Icons.close : Icons.search,
-              color: iconColor,
+              color: colorScheme.onSurface,
             ),
             onPressed: () {
               setState(() {
@@ -141,13 +139,13 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.add, color: iconColor),
+            icon: Icon(Icons.add, color: colorScheme.onSurface),
             onPressed: () => _openNoteEditScreen(),
           ),
         ],
       ),
       drawer: ReusableDrawer(onThemeChanged: widget.onThemeChanged),
-      backgroundColor: appBarColor,
+      backgroundColor: colorScheme.background,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _filteredNotes.isEmpty
@@ -157,7 +155,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? 'Nenhum resultado.'
                     : 'Nenhuma nota ou tarefa cadastrada.\nAdicione a primeira!',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: iconColor.withOpacity(0.6)),
+                style: TextStyle(
+                  color: colorScheme.onBackground.withOpacity(0.6),
+                ),
               ),
             )
           : ListView.builder(
@@ -166,9 +166,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 final note = _filteredNotes[index];
                 final category = _categories.firstWhere(
                   (cat) => cat.id == note.categoryId,
-                  orElse: () => Category(id: '0', name: 'Outros'),
+                  orElse: () => Category(
+                    id: '0',
+                    name: 'Outros',
+                    iconCodePoint: Icons.category.codePoint,
+                    iconFontFamily: Icons.category.fontFamily!,
+                  ),
                 );
-                final icon = _categoryIcons[category.name] ?? Icons.category;
+
+                final icon = category.icon;
 
                 return Dismissible(
                   key: Key(note.id),
@@ -183,17 +189,74 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.red,
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: const Icon(Icons.delete, color: Colors.white),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // Botão de Pesquisa com IA
+                        Icon(Icons.forum, color: Colors.white),
+                        const SizedBox(width: 8),
+                        // Botão de Excluir
+                        Icon(Icons.delete, color: Colors.white),
+                      ],
+                    ),
                   ),
+                  confirmDismiss: (direction) async {
+                    if (direction == DismissDirection.endToStart) {
+                      final action = await showDialog<String>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text('Selecione uma ação'),
+                            content: const Text(
+                              'O que você deseja fazer com esta tarefa?',
+                            ),
+                            actions: <Widget>[
+                              TextButton(
+                                // AQUI: A CHAMADA FOI ALTERADA PARA AI_CHAT_SCREEN
+                                onPressed: () =>
+                                    Navigator.of(context).pop('chat'),
+                                child: const Text('Pesquisar com IA'),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop('delete'),
+                                child: const Text('Excluir'),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop('cancel'),
+                                child: const Text('Cancelar'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                      if (action == 'chat') {
+                        Navigator.push(
+                          context,
+                          // AQUI ESTÁ O CÓDIGO CORRETO:
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                AiChatScreen(initialQuery: note.content),
+                          ),
+                        );
+                        return false;
+                      } else if (action == 'delete') {
+                        return true;
+                      }
+                      return false;
+                    }
+                    return false;
+                  },
                   onDismissed: (direction) async {
                     if (direction == DismissDirection.endToStart) {
-                      await _localStorageService.deleteNote(note.id);
+                      await _noteService.deleteNote(note.id);
+                      _loadData();
                     } else if (direction == DismissDirection.startToEnd) {
                       if (note.isTask) {
                         _toggleTaskCompletion(note, true);
                       }
                     }
-                    _loadData();
                   },
                   child: NoteListItem(
                     note: note,

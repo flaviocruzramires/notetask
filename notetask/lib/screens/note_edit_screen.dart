@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:notetask/services/category_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:http/http.dart' as http;
-import 'dart:io';
-
 import '../models/note.dart';
 import '../models/category.dart';
-import '../services/local_storage_service.dart';
 import '../widgets/task_scheduler_fields.dart';
 
 /// Classe para gerenciar a autenticação e o uso da API
@@ -34,16 +32,16 @@ class NoteEditScreen extends StatefulWidget {
 
 class _NoteEditScreenState extends State<NoteEditScreen> {
   final TextEditingController _contentController = TextEditingController();
-  final LocalStorageService _localStorageService = LocalStorageService();
+  final CategoryService _categoryService = CategoryService();
   bool _isTask = false;
   bool _isCompleted = false;
   String? _selectedCategoryId;
   List<Category> _categories = [];
 
-  // Variáveis para agendamento
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   bool _addToCalendar = false;
+  bool _setAlarm = false;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: <String>[calendar.CalendarApi.calendarScope],
@@ -64,11 +62,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         _selectedTime = TimeOfDay.fromDateTime(widget.note!.scheduledDate!);
       }
       _addToCalendar = widget.note!.addToCalendar;
+      _setAlarm = widget.note!.setAlarm;
     }
   }
 
   Future<void> _loadCategories() async {
-    final categories = await _localStorageService.getCategories();
+    final categories = await _categoryService.getCategories();
     setState(() {
       _categories = categories;
     });
@@ -96,6 +95,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             )
           : null,
       addToCalendar: _addToCalendar,
+      setAlarm: _setAlarm,
     );
 
     if (newNote.isTask &&
@@ -214,6 +214,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             _selectedDate = null;
                             _selectedTime = null;
                             _addToCalendar = false;
+                            _setAlarm = false;
                           }
                         });
                       },
@@ -254,15 +255,15 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               initialDate: _selectedDate,
               initialTime: _selectedTime,
               initialAddToCalendar: _addToCalendar,
+              initialSetAlarm: _setAlarm,
               onDateSelected: (date) {
                 setState(() => _selectedDate = date);
               },
               onTimeSelected: (time) {
                 setState(() => _selectedTime = time);
               },
-              onAddToCalendarChanged: (value) {
-                setState(() => _addToCalendar = value);
-              },
+              onAddToCalendarChanged: (bool value) {},
+              onSetAlarmChanged: (bool value) {},
             ),
 
           Padding(
@@ -294,13 +295,18 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               padding: const EdgeInsets.all(16.0),
               child: TextField(
                 controller: _contentController,
+
                 style: TextStyle(color: colorScheme.onSurface),
                 decoration: InputDecoration(
                   hintText: 'Digite aqui sua nota ou tarefa...',
                   hintStyle: TextStyle(
                     color: colorScheme.onSurface.withOpacity(0.5),
                   ),
-                  border: InputBorder.none,
+                  enabledBorder: const UnderlineInputBorder(),
+                  focusedBorder: const UnderlineInputBorder(),
+                  border: const UnderlineInputBorder(),
+                  filled: true,
+                  fillColor: colorScheme.surface,
                 ),
                 keyboardType: TextInputType.multiline,
                 maxLines: null,

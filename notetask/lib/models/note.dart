@@ -6,6 +6,8 @@ class Note {
   String? categoryId;
   final DateTime? scheduledDate;
   final bool addToCalendar;
+  final bool setAlarm;
+  final bool isArchived;
   Note({
     required this.id,
     required this.content,
@@ -14,6 +16,8 @@ class Note {
     this.categoryId,
     this.scheduledDate,
     this.addToCalendar = false,
+    this.setAlarm = false,
+    this.isArchived = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -25,6 +29,8 @@ class Note {
       'categoryId': categoryId,
       'scheduledDate': scheduledDate?.toIso8601String(),
       'addToCalendar': addToCalendar ? 1 : 0,
+      'setAlarm': setAlarm ? 1 : 0,
+      'isArchived': isArchived ? 1 : 0,
     };
   }
 
@@ -39,6 +45,8 @@ class Note {
           ? DateTime.parse(json['scheduledDate'])
           : null,
       addToCalendar: json['addToCalendar'] == 1,
+      setAlarm: json['setAlarm'] == 1,
+      isArchived: json['isArchived'] == 1,
     );
   }
 

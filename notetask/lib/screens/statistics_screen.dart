@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:notetask/services/category_service.dart';
+import 'package:notetask/services/note_service.dart';
 import '../models/note.dart';
 import '../models/category.dart';
-import '../services/local_storage_service.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -12,7 +13,8 @@ class StatisticsScreen extends StatefulWidget {
 }
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
-  final LocalStorageService _localStorageService = LocalStorageService();
+  final NoteService _notesService = NoteService();
+  final CategoryService _categoryService = CategoryService();
   bool _isLoading = true;
   List<Note> _allNotes = [];
   List<Category> _categories = [];
@@ -29,8 +31,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Future<void> _loadData() async {
-    final notes = await _localStorageService.getNotes();
-    final categories = await _localStorageService.getCategories();
+    final notes = await _notesService.getNotes();
+    final categories = await _categoryService.getCategories();
 
     final Map<String, int> notesByCategoryCount = {};
     for (var category in categories) {
@@ -177,13 +179,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           color: colorScheme.primary,
         ),
         _buildSummaryCard(
-          title: 'Tarefas Abertas',
+          title: 'Abertas',
           value: _openTasks.toString(),
           icon: Icons.task_alt,
           color: Colors.orange,
         ),
         _buildSummaryCard(
-          title: 'Tarefas Concluídas',
+          title: 'Concluídas',
           value: _completedTasks.toString(),
           icon: Icons.check_circle_outline,
           color: Colors.green,
