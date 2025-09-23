@@ -1,14 +1,14 @@
-// lib/screens/home_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:notetask/models/note.dart';
 import 'package:notetask/models/category.dart';
 import 'package:notetask/screens/note_edit_screen.dart';
-import 'package:notetask/screens/ai_chat_screen.dart'; // Importa a tela correta de chat
+import 'package:notetask/screens/ai_chat_screen.dart';
 import 'package:notetask/services/note_service.dart';
 import 'package:notetask/services/category_service.dart';
+import 'package:notetask/utils/app_const.dart';
 import 'package:notetask/widgets/note_list_item.dart';
 import 'package:notetask/widgets/reusable_drawer.dart';
+import 'package:notetask/widgets/text_field_custom.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(bool) onThemeChanged;
@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   bool _isSearching = false;
 
+  @override
   @override
   void initState() {
     super.initState();
@@ -66,16 +67,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openNoteEditScreen([Note? note]) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => NoteEditScreen(note: note)),
-    );
+    try {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => NoteEditScreen(note: note)),
+      );
 
-    if (result != null && result is Note) {
-      await _noteService.saveNote(result);
-      _loadData();
-    } else if (result == 'delete' && note != null) {
-      await _noteService.deleteNote(note.id);
+      if (result != null && result is Note) {
+        await _noteService.saveNote(result);
+      } else if (result == 'delete' && note != null) {
+        await _noteService.deleteNote(note.id);
+      }
+    } finally {
       _loadData();
     }
   }
@@ -103,171 +106,178 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
-      appBar: AppBar(
-        title: _isSearching
-            ? TextField(
-                decoration: InputDecoration(
-                  hintText: 'Pesquisar...',
-                  border: InputBorder.none,
-                  hintStyle: TextStyle(
-                    color: colorScheme.onSurface.withOpacity(0.5),
-                  ),
-                ),
-                onChanged: _filterNotes,
-                autofocus: true,
-                style: TextStyle(color: colorScheme.onSurface),
-              )
-            : const Text('NoteTask'),
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
-        elevation: 1,
-        actions: [
-          IconButton(
-            icon: Icon(
-              _isSearching ? Icons.close : Icons.search,
-              color: colorScheme.onSurface,
-            ),
-            onPressed: () {
-              setState(() {
-                _isSearching = !_isSearching;
-                if (!_isSearching) {
-                  _filteredNotes = _notes;
-                }
-              });
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.add, color: colorScheme.onSurface),
-            onPressed: () => _openNoteEditScreen(),
-          ),
-        ],
-      ),
+      appBar: obterAppBar(context, colorScheme),
       drawer: ReusableDrawer(onThemeChanged: widget.onThemeChanged),
-      backgroundColor: colorScheme.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _filteredNotes.isEmpty
-          ? Center(
-              child: Text(
-                _isSearching
-                    ? 'Nenhum resultado.'
-                    : 'Nenhuma nota ou tarefa cadastrada.\nAdicione a primeira!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colorScheme.onBackground.withOpacity(0.6),
-                ),
-              ),
+      backgroundColor: colorScheme.surface,
+      body: obterBody(context, colorScheme),
+    );
+  }
+
+  obterAppBar(BuildContext context, dynamic colorScheme) {
+    return AppBar(
+      title: _isSearching
+          ? TextFieldCustom(
+              hintText: AppConst.searchHint,
+              border: UnderlineInputBorder(borderSide: BorderSide.none),
+              onChanged: _filterNotes,
+              borderColor: colorScheme.onSurface.withOpacity(0.5),
             )
-          : ListView.builder(
-              itemCount: _filteredNotes.length,
-              itemBuilder: (context, index) {
-                final note = _filteredNotes[index];
-                final category = _categories.firstWhere(
-                  (cat) => cat.id == note.categoryId,
-                  orElse: () => Category(
-                    id: '0',
-                    name: 'Outros',
-                    iconCodePoint: Icons.category.codePoint,
-                    iconFontFamily: Icons.category.fontFamily!,
-                  ),
-                );
+          : const Text(AppConst.appName),
+      backgroundColor: colorScheme.surface,
+      foregroundColor: colorScheme.onSurface,
+      elevation: 1,
+      actions: [
+        IconButton(
+          icon: Icon(
+            _isSearching ? Icons.close : Icons.search,
+            color: colorScheme.onSurface,
+          ),
+          onPressed: () {
+            setState(() {
+              _isSearching = !_isSearching;
+              if (!_isSearching) {
+                _filteredNotes = _notes;
+              }
+            });
+          },
+        ),
+        IconButton(
+          icon: Icon(Icons.add, color: colorScheme.onSurface),
+          onPressed: () => _openNoteEditScreen(),
+        ),
+      ],
+    );
+  }
 
-                final icon = category.icon;
+  obterBody(BuildContext context, dynamic colorScheme) {
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _filteredNotes.isEmpty
+        ? viewMessageWithOutNoteAndTask(colorScheme)
+        : obterListView();
+  }
 
-                return Dismissible(
-                  key: Key(note.id),
-                  direction: DismissDirection.horizontal,
-                  background: Container(
-                    color: Colors.green,
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: const Icon(Icons.check, color: Colors.white),
-                  ),
-                  secondaryBackground: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        // Botão de Pesquisa com IA
-                        Icon(Icons.forum, color: Colors.white),
-                        const SizedBox(width: 8),
-                        // Botão de Excluir
-                        Icon(Icons.delete, color: Colors.white),
-                      ],
-                    ),
-                  ),
-                  confirmDismiss: (direction) async {
-                    if (direction == DismissDirection.endToStart) {
-                      final action = await showDialog<String>(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text('Selecione uma ação'),
-                            content: const Text(
-                              'O que você deseja fazer com esta tarefa?',
-                            ),
-                            actions: <Widget>[
-                              TextButton(
-                                // AQUI: A CHAMADA FOI ALTERADA PARA AI_CHAT_SCREEN
-                                onPressed: () =>
-                                    Navigator.of(context).pop('chat'),
-                                child: const Text('Pesquisar com IA'),
-                              ),
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop('delete'),
-                                child: const Text('Excluir'),
-                              ),
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop('cancel'),
-                                child: const Text('Cancelar'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                      if (action == 'chat') {
-                        Navigator.push(
-                          context,
-                          // AQUI ESTÁ O CÓDIGO CORRETO:
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                AiChatScreen(initialQuery: note.content),
-                          ),
-                        );
-                        return false;
-                      } else if (action == 'delete') {
-                        return true;
-                      }
-                      return false;
-                    }
-                    return false;
-                  },
-                  onDismissed: (direction) async {
-                    if (direction == DismissDirection.endToStart) {
-                      await _noteService.deleteNote(note.id);
-                      _loadData();
-                    } else if (direction == DismissDirection.startToEnd) {
-                      if (note.isTask) {
-                        _toggleTaskCompletion(note, true);
-                      }
-                    }
-                  },
-                  child: NoteListItem(
-                    note: note,
-                    categoryIcon: icon,
-                    categoryName: category.name,
-                    onTap: () => _openNoteEditScreen(note),
-                    onToggleTask: (value) => _toggleTaskCompletion(note, value),
-                  ),
-                );
-              },
+  Center viewMessageWithOutNoteAndTask(dynamic colorScheme) {
+    return Center(
+      child: Text(
+        _isSearching
+            ? AppConst.noResults
+            : 'Nenhuma nota ou tarefa cadastrada.\nAdicione a primeira!',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: colorScheme.onBackground.withOpacity(0.6)),
+      ),
+    );
+  }
+
+  obterListView() {
+    return ListView.builder(
+      itemCount: _filteredNotes.length,
+      itemBuilder: (context, index) {
+        final note = _filteredNotes[index];
+        final category = _categories.firstWhere(
+          (cat) => cat.id == note.categoryId,
+          orElse: () => Category(
+            id: '0',
+            name: 'Outros',
+            iconCodePoint: Icons.category.codePoint,
+            iconFontFamily: Icons.category.fontFamily!,
+          ),
+        );
+
+        final icon = category.icon;
+
+        return Dismissible(
+          key: Key(note.id),
+          direction: DismissDirection.horizontal,
+          background: Container(
+            color: Colors.green,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: const Icon(Icons.check, color: Colors.white),
+          ),
+          secondaryBackground: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Icon(Icons.forum, color: Colors.white),
+                const SizedBox(width: 8),
+                Icon(Icons.delete, color: Colors.white),
+              ],
             ),
+          ),
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.endToStart) {
+              final action = await showDialog<String>(
+                context: context,
+                builder: (BuildContext context) {
+                  return montaAlertDialog();
+                },
+              );
+              if (action == 'chat') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AiChatScreen(initialQuery: note.content),
+                  ),
+                );
+                return false;
+              } else if (action == 'delete') {
+                return true;
+              }
+              return false;
+            }
+            return false;
+          },
+          onDismissed: (direction) async {
+            if (direction == DismissDirection.endToStart) {
+              await _noteService.deleteNote(note.id);
+              _loadData();
+            } else if (direction == DismissDirection.startToEnd) {
+              if (note.isTask) {
+                _toggleTaskCompletion(note, true);
+              }
+            }
+          },
+          child: NoteListItem(
+            note: note,
+            categoryIcon: icon,
+            categoryName: category.name,
+            onTap: () => _openNoteEditScreen(note),
+            onToggleTask: (value) => _toggleTaskCompletion(note, value),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class montaAlertDialog extends StatelessWidget {
+  const montaAlertDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Selecione uma ação'),
+      content: const Text('O que você deseja fazer com esta tarefa?'),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop('chat'),
+          child: const Text('Pesquisar com IA'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop('delete'),
+          child: const Text('Excluir'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop('cancel'),
+          child: const Text('Cancelar'),
+        ),
+      ],
     );
   }
 }

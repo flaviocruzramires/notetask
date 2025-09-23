@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:notetask/utils/app_const.dart';
+import 'package:notetask/widgets/text_custom.dart';
 
 class TaskSchedulerFields extends StatefulWidget {
   final DateTime? initialDate;
@@ -49,11 +51,11 @@ class _TaskSchedulerFieldsState extends State<TaskSchedulerFields> {
       children: [
         const SizedBox(height: 16),
         ListTile(
-          title: Text(
-            _selectedDate == null
-                ? 'Selecione a Data'
+          title: TextCustom(
+            text: _selectedDate == null
+                ? AppConst.selectDate
                 : 'Data: ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-            style: TextStyle(color: colorScheme.onSurface),
+            color: colorScheme.onSurface,
           ),
           trailing: Icon(Icons.calendar_today, color: colorScheme.onSurface),
           onTap: () async {
@@ -70,11 +72,11 @@ class _TaskSchedulerFieldsState extends State<TaskSchedulerFields> {
           },
         ),
         ListTile(
-          title: Text(
-            _selectedTime == null
-                ? 'Selecione a Hora'
+          title: TextCustom(
+            text: _selectedTime == null
+                ? AppConst.selectTime
                 : 'Hora: ${_selectedTime!.format(context)}',
-            style: TextStyle(color: colorScheme.onSurface),
+            color: colorScheme.onSurface,
           ),
           trailing: Icon(Icons.access_time, color: colorScheme.onSurface),
           onTap: () async {
@@ -105,9 +107,9 @@ class _TaskSchedulerFieldsState extends State<TaskSchedulerFields> {
                 activeColor: colorScheme.onSurface,
                 checkColor: Theme.of(context).scaffoldBackgroundColor,
               ),
-              Text(
-                'Adicionar ao Google Calendar',
-                style: TextStyle(color: colorScheme.onSurface),
+              TextCustom(
+                text: 'Adicionar ao Google Calendar',
+                color: colorScheme.onSurface,
               ),
             ],
           ),

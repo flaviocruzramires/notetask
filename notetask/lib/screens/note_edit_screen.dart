@@ -99,7 +99,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     );
 
     if (newNote.isTask &&
-        newNote.addToCalendar &&
+        // newNote.addToCalendar &&
         newNote.scheduledDate != null) {
       await _addEventToCalendar(newNote.content, newNote.scheduledDate!);
     }
@@ -166,9 +166,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     } catch (e) {
       print('Erro ao adicionar evento: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Erro: Não foi possível adicionar o evento ao calendário.',
+            'Erro: Não foi possível adicionar o evento ao calendário. $e',
           ),
         ),
       );
